@@ -1,78 +1,144 @@
 import * as THREE from 'three';
 import { gsap } from 'gsap';
-import { BOARD_CONFIG } from '../utils/constants.js';
 
 export default class Player {
-    constructor(scene) {
+    constructor(scene, isBot = false) {
         this.scene = scene;
-        this.position = 0; // Start position
-        this.hp = BOARD_CONFIG.STARTING_HP;
+        this.isBot = isBot;
+        this.position = 0;
+        this.hp = 15;
         this.createModel();
-        this.updateHPDisplay();
     }
 
     createModel() {
-        // Create player character model
-        const geometry = new THREE.ConeGeometry(0.5, 1.5, 4);
-        const material = new THREE.MeshPhongMaterial({
-            color: 0x4444ff,
+        // Create a group for the player model
+        this.model = new THREE.Group();
+
+        // Base - floating platform
+        const baseGeometry = new THREE.CylinderGeometry(0.6, 0.4, 0.2, 6);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+            color: this.isBot ? 0xff4444 : 0x4444ff,
             metalness: 0.7,
-            roughness: 0.3
+            roughness: 0.3,
+            emissive: this.isBot ? 0xff0000 : 0x0000ff,
+            emissiveIntensity: 0.2
         });
-        
-        this.mesh = new THREE.Mesh(geometry, material);
-        this.mesh.castShadow = true;
-        this.mesh.position.y = 1;
-        this.scene.add(this.mesh);
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        this.model.add(base);
+
+        // Character body
+        const bodyGeometry = new THREE.ConeGeometry(0.3, 1, 6);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: this.isBot ? 0xff8888 : 0x8888ff,
+            metalness: 0.5,
+            roughness: 0.5
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.7;
+        this.model.add(body);
+
+        // Add glow effect
+        const glowGeometry = new THREE.ConeGeometry(0.4, 1.2, 6);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: this.isBot ? 0xff0000 : 0x0000ff,
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.BackSide
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.copy(body.position);
+        this.model.add(glow);
+
+        // Position the model and add to scene
+        this.model.position.y = 1;
+        this.scene.add(this.model);
+
+        // Add hovering animation
+        this.addHoverAnimation();
     }
 
-    move(steps) {
-        const newPosition = Math.min(this.position + steps, BOARD_CONFIG.TOTAL_CELLS - 1);
-        const targetCell = this.scene.getObjectByName(`cell-${newPosition}`);
-        
-        if (targetCell) {
-            gsap.to(this.mesh.position, {
-                x: targetCell.position.x,
-                z: targetCell.position.z,
-                duration: 1,
-                ease: "power2.inOut"
-            });
-            
-            this.position = newPosition;
-        }
-    }
-
-    takeDamage(amount) {
-        this.hp = Math.max(0, this.hp - amount);
-        this.updateHPDisplay();
-        
-        // Visual feedback
-        gsap.to(this.mesh.material.color, {
-            r: 1,
-            g: 0,
-            b: 0,
-            duration: 0.2,
+    addHoverAnimation() {
+        gsap.to(this.model.position, {
+            y: '+=0.2',
+            duration: 1,
             yoyo: true,
-            repeat: 1,
+            repeat: -1,
+            ease: "power1.inOut"
+        });
+
+        gsap.to(this.model.rotation, {
+            y: Math.PI * 2,
+            duration: 5,
+            repeat: -1,
+            ease: "none"
+        });
+    }
+
+    moveTo(targetCell) {
+        const targetPos = targetCell.position;
+        
+        // Create animation
+        gsap.to(this.model.position, {
+            x: targetPos.x,
+            z: targetPos.z,
+            duration: 1,
+            ease: "power2.inOut",
             onComplete: () => {
-                this.mesh.material.color.setHex(0x4444ff);
+                this.position = targetCell.userData.index;
+                this.checkForGoblin(targetCell);
             }
         });
     }
 
-    updateHPDisplay() {
-        document.getElementById('player-hp').textContent = this.hp;
+    takeDamage(amount) {
+        this.hp = Math.max(0, this.hp - amount);
+        
+        // Update UI
+        const element = this.isBot ? 'bot-hp' : 'player-hp';
+        document.getElementById(element).textContent = this.hp;
+
+        // Visual feedback
+        gsap.to(this.model.scale, {
+            x: 0.5,
+            y: 0.5,
+            z: 0.5,
+            duration: 0.1,
+            yoyo: true,
+            repeat: 1
+        });
+
+        // Flash red
+        const bodyMaterial = this.model.children[1].material;
+        const originalColor = bodyMaterial.color.getHex();
+        bodyMaterial.color.setHex(0xff0000);
+        
+        gsap.delayedCall(0.3, () => {
+            bodyMaterial.color.setHex(originalColor);
+        });
+    }
+
+    checkForGoblin(cell) {
+        if (cell.hasGoblin) {
+            const damage = Math.floor(Math.random() * 3) + 1;
+            this.takeDamage(damage);
+        }
+    }
+
+    getPosition() {
+        return this.position;
     }
 
     reset() {
         this.position = 0;
-        this.hp = BOARD_CONFIG.STARTING_HP;
-        this.updateHPDisplay();
+        this.hp = 15;
+        document.getElementById(this.isBot ? 'bot-hp' : 'player-hp').textContent = this.hp;
         
-        const startCell = this.scene.getObjectByName('cell-0');
-        if (startCell) {
-            this.mesh.position.x = startCell.position.x;
-            this.mesh.position.z = startCell.position.z;
-        }
+        // Return to start position
+        gsap.to(this.model.position, {
+            x: 0,
+            z: 0,
+            duration: 0.5,
+            ease: "power2.inOut"
+        });
     }
 }
