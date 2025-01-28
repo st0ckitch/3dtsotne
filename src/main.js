@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Board from './game/Board.js';
+import Player from './game/Player.js';
 
 class DungeonGame {
     constructor() {
@@ -18,41 +19,20 @@ class DungeonGame {
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setClearColor(0x000000);
         
-        const container = document.getElementById('game-container');
-        container.appendChild(this.renderer.domElement);
+        document.getElementById('game-container').appendChild(this.renderer.domElement);
 
         // Set up camera
         this.camera.position.set(0, 25, 25);
         this.camera.lookAt(0, 0, 0);
 
-        // Setup lighting - IMPROVED LIGHTING
         this.setupLighting();
-
-        // Add OrbitControls
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-        this.controls.maxPolarAngle = Math.PI / 2;
-        this.controls.minDistance = 10;
-        this.controls.maxDistance = 50;
-
-        // Create game board
-        this.board = new Board(this.scene);
-
-        // Add ground plane with better material
-        const planeGeometry = new THREE.PlaneGeometry(100, 100);
-        const planeMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x222222,
-            roughness: 0.8,
-            metalness: 0.2
-        });
-        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-        plane.rotation.x = -Math.PI / 2;
-        plane.position.y = -0.2;
-        plane.receiveShadow = true;
-        this.scene.add(plane);
-
+        this.setupControls();
+        this.setupGame();
+        
+        // Start animation loop
         this.animate();
+
+        // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
@@ -66,7 +46,6 @@ class DungeonGame {
         mainLight.position.set(10, 30, 10);
         mainLight.castShadow = true;
         
-        // Improve shadow quality
         mainLight.shadow.mapSize.width = 2048;
         mainLight.shadow.mapSize.height = 2048;
         mainLight.shadow.camera.near = 0.5;
@@ -78,11 +57,7 @@ class DungeonGame {
         
         this.scene.add(mainLight);
 
-        // Add hemisphere light for better ambient lighting
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
-        this.scene.add(hemiLight);
-
-        // Add point lights at corners for better path visibility
+        // Add point lights at corners
         const pointLightPositions = [
             { x: 15, y: 10, z: 15 },
             { x: -15, y: 10, z: 15 },
@@ -91,20 +66,76 @@ class DungeonGame {
         ];
 
         pointLightPositions.forEach(pos => {
-            const pointLight = new THREE.PointLight(0xffaa66, 0.8, 30);
+            const pointLight = new THREE.PointLight(0xffaa66, 1, 30);
             pointLight.position.set(pos.x, pos.y, pos.z);
             pointLight.castShadow = true;
             this.scene.add(pointLight);
         });
     }
 
+    setupControls() {
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+        this.controls.dampingFactor = 0.05;
+        this.controls.maxPolarAngle = Math.PI / 2;
+        this.controls.minDistance = 10;
+        this.controls.maxDistance = 50;
+    }
+
+    setupGame() {
+        // Create game board
+        this.board = new Board(this.scene);
+
+        // Create players
+        this.player = new Player(this.scene, false);
+        this.bot = new Player(this.scene, true);
+
+        // Set initial positions
+        const startCell = this.board.getCellAt(0);
+        if (startCell) {
+            this.player.moveTo(startCell);
+            this.bot.moveTo(startCell);
+        }
+
+        // Add ground plane
+        const planeGeometry = new THREE.PlaneGeometry(100, 100);
+        const planeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x222222,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.y = -0.2;
+        plane.receiveShadow = true;
+        this.scene.add(plane);
+
+        // Setup dice roll button
+        document.getElementById('roll-dice').addEventListener('click', () => this.handleDiceRoll());
+    }
+
+    handleDiceRoll() {
+        const roll = Math.floor(Math.random() * 6) + 1;
+        const targetCell = this.board.getCellAt(Math.min(this.player.getPosition() + roll, this.board.pathCells.length - 1));
+        
+        if (targetCell) {
+            this.player.moveTo(targetCell);
+        }
+
+        // Bot's turn after a delay
+        setTimeout(() => {
+            const botRoll = Math.floor(Math.random() * 6) + 1;
+            const botTargetCell = this.board.getCellAt(Math.min(this.bot.getPosition() + botRoll, this.board.pathCells.length - 1));
+            
+            if (botTargetCell) {
+                this.bot.moveTo(botTargetCell);
+            }
+        }, 1500);
+    }
+
     animate() {
         requestAnimationFrame(() => this.animate());
-
-        // Update controls
         this.controls.update();
-
-        // Render
         this.renderer.render(this.scene, this.camera);
     }
 
