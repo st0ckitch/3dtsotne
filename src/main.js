@@ -2,22 +2,32 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Game from './game/Game.js';
 
+// Make THREE available globally
+window.THREE = THREE;
+
 class DungeonCrawler {
     constructor() {
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.game = new Game(this.scene);
         
-        this.init();
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', () => {
+            this.init();
+            this.game = new Game(this.scene);
+        });
     }
 
     init() {
         // Setup renderer
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.shadowMap.enabled = true;
-        document.getElementById('game-container').appendChild(this.renderer.domElement);
+        
+        const container = document.getElementById('game-container');
+        if (container) {
+            container.appendChild(this.renderer.domElement);
+        }
 
         // Setup camera
         this.camera.position.set(0, 30, 30);
