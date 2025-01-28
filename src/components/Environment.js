@@ -180,12 +180,12 @@ export default class Environment {
     }
 
     setupLighting() {
-        // Main ambient light (dim bluish for night atmosphere)
-        const ambientLight = new THREE.AmbientLight(0x666699, 0.3);
+        // Main ambient light (increased intensity, warmer color)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambientLight);
 
-        // Moonlight effect
-        const moonLight = new THREE.DirectionalLight(0x77ccff, 0.5);
+        // Moonlight effect (brighter, more neutral color)
+        const moonLight = new THREE.DirectionalLight(0xffffff, 1.0);
         moonLight.position.set(50, 100, 50);
         moonLight.castShadow = true;
         
@@ -202,13 +202,17 @@ export default class Environment {
         
         this.scene.add(moonLight);
 
+        // Add hemisphere light for better ambient lighting
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        this.scene.add(hemiLight);
+
         // Add volumetric fog
         this.setupFog();
     }
 
     setupFog() {
-        // Create volumetric fog effect
-        this.scene.fog = new THREE.FogExp2(0x000000, 0.015);
+        // Create less dense fog with a lighter color
+        this.scene.fog = new THREE.FogExp2(0x222222, 0.008);
 
         // Add fog particles for atmosphere
         this.createFogParticles();
