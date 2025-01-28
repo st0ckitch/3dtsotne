@@ -9,7 +9,7 @@ export default class Board {
         this.pathManager = new PathManager(scene);
         
         this.createBoard();
-        this.generatePath();
+        this.generateGamePath();
     }
 
     createBoard() {
@@ -30,7 +30,6 @@ export default class Board {
     }
 
     createCell(x, z, index) {
-        // Create hexagonal cell
         const geometry = new THREE.CylinderGeometry(1, 1, 0.2, 6);
         const material = new THREE.MeshStandardMaterial({
             color: 0x808080,
@@ -46,59 +45,71 @@ export default class Board {
         
         this.cells.push(cell);
         this.scene.add(cell);
+
+        return cell;
     }
 
-    generatePath() {
-        // Select cells for the path
+    generateGamePath() {
+        // Start with a random edge cell for the beginning
         const startCell = this.cells[0];
         startCell.material.color.setHex(0x00ff00);
         this.pathCells.push(startCell);
 
         let currentCell = startCell;
-        const targetCellCount = 10; // Adjust this number for longer/shorter paths
+        const pathLength = 10; // Fixed path length
 
-        while (this.pathCells.length < targetCellCount) {
-            const neighbors = this.getNeighborCells(currentCell);
-            const availableNeighbors = neighbors.filter(cell => 
-                !this.pathCells.includes(cell)
-            );
+        // Generate path
+        while (this.pathCells.length < pathLength) {
+            const neighbors = this.getValidNeighbors(currentCell);
+            if (neighbors.length === 0) break;
 
-            if (availableNeighbors.length === 0) break;
-
-            // Choose random neighbor
-            const nextCell = availableNeighbors[
-                Math.floor(Math.random() * availableNeighbors.length)
-            ];
-
+            // Choose random valid neighbor
+            const nextCell = neighbors[Math.floor(Math.random() * neighbors.length)];
             this.pathCells.push(nextCell);
             currentCell = nextCell;
         }
 
-        // Mark end cell
-        const endCell = this.pathCells[this.pathCells.length - 1];
-        endCell.material.color.setHex(0xff0000);
+        // Mark the end cell
+        if (this.pathCells.length > 1) {
+            const endCell = this.pathCells[this.pathCells.length - 1];
+            endCell.material.color.setHex(0xff0000);
+        }
 
-        // Create visual path
+        // Create the visual path
+        console.log('Generating path with cells:', this.pathCells.length);
         this.pathManager.createPath(this.pathCells);
     }
 
-    getNeighborCells(cell) {
+    getValidNeighbors(cell) {
         const neighbors = [];
-        const maxDistance = 3; // Adjust this for path spacing
+        const maxDistance = 4; // Maximum distance between connected cells
 
-        this.cells.forEach(otherCell => {
-            if (cell === otherCell) return;
+        for (const otherCell of this.cells) {
+            if (cell === otherCell || this.pathCells.includes(otherCell)) continue;
 
             const dx = otherCell.position.x - cell.position.x;
             const dz = otherCell.position.z - cell.position.z;
             const distance = Math.sqrt(dx * dx + dz * dz);
 
-            if (distance < maxDistance) {
+            if (distance <= maxDistance) {
                 neighbors.push(otherCell);
             }
+        }
+
+        // Sort by distance to prefer closer cells
+        neighbors.sort((a, b) => {
+            const distA = Math.sqrt(
+                Math.pow(a.position.x - cell.position.x, 2) +
+                Math.pow(a.position.z - cell.position.z, 2)
+            );
+            const distB = Math.sqrt(
+                Math.pow(b.position.x - cell.position.x, 2) +
+                Math.pow(b.position.z - cell.position.z, 2)
+            );
+            return distA - distB;
         });
 
-        return neighbors;
+        return neighbors.slice(0, 3); // Limit to closest 3 neighbors
     }
 
     getCellAt(index) {
@@ -106,6 +117,8 @@ export default class Board {
     }
 
     highlightCell(cell, highlight = true) {
+        if (!cell) return;
+        
         if (highlight) {
             cell.material.emissive.setHex(0x666666);
             cell.material.emissiveIntensity = 0.5;
