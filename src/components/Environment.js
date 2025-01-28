@@ -6,6 +6,17 @@ export default class Environment {
         this.obstacles = new THREE.Group();
         this.scene.add(this.obstacles);
         
+        // Initialize Perlin noise permutation table
+        this.p = new Array(512);
+        for (let i = 0; i < 256; i++) this.p[i] = i;
+        for (let i = 0; i < 256; i++) {
+            const j = Math.floor(Math.random() * 256);
+            [this.p[i], this.p[j]] = [this.p[j], this.p[i]];
+        }
+        for (let i = 0; i < 256; i++) {
+            this.p[i + 256] = this.p[i];
+        }
+        
         this.createEnvironment();
         this.setupLighting();
     }
@@ -379,12 +390,16 @@ export default class Environment {
         const A = this.p[X] + Y;
         const B = this.p[X + 1] + Y;
         
-        return this.lerp(v, 
-            this.lerp(u,
+        return this.lerp(v,
+            this.lerp(u, 
                 this.grad(this.p[A], x, y),
-                this.grad(perlinNoise(x, y) {
-        // Simple perlin noise implementation
-        return (Math.sin(x * 10 + Math.cos(y * 10)) + 1) / 2;
+                this.grad(this.p[B], x - 1, y)
+            ),
+            this.lerp(u,
+                this.grad(this.p[A + 1], x, y - 1),
+                this.grad(this.p[B + 1], x - 1, y - 1)
+            )
+        );
     }
 
     fade(t) {
@@ -397,8 +412,9 @@ export default class Environment {
 
     grad(hash, x, y) {
         const h = hash & 15;
-        const grad = 1 + (h & 7);
-        return ((h & 8) ? -grad : grad) * x + ((h & 4) ? -grad : grad) * y;
+        const u = h < 8 ? x : y;
+        const v = h < 4 ? y : h === 12 || h === 14 ? x : y;
+        return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
     }
 
     addDecorations() {
