@@ -10,15 +10,16 @@ export default class Cell {
     createMesh(x, y, z) {
         // Create hexagonal shape
         const geometry = new THREE.CylinderGeometry(1, 1, 0.2, 6);
-        const material = new THREE.MeshPhongMaterial({
+        const material = new THREE.MeshStandardMaterial({
             color: this.index === 49 ? 0x00ff00 : 0x666666,
-            shininess: 30,
-            specular: 0x444444
+            roughness: 0.7,
+            metalness: 0.3
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
         this.mesh.position.set(x, y, z);
         this.mesh.receiveShadow = true;
+        this.mesh.castShadow = true;
         
         // Set name for easy reference
         this.mesh.name = `cell-${this.index}`;
@@ -28,11 +29,12 @@ export default class Cell {
         this.hasGoblin = true;
         // Visual indicator for goblin presence
         const indicatorGeometry = new THREE.SphereGeometry(0.3);
-        const indicatorMaterial = new THREE.MeshPhongMaterial({ 
+        const indicatorMaterial = new THREE.MeshStandardMaterial({ 
             color: 0xff0000,
             emissive: 0xff0000,
-            emissiveIntensity: 0.2,
-            shininess: 30
+            emissiveIntensity: 0.5,
+            roughness: 0.5,
+            metalness: 0.5
         });
         
         const indicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
