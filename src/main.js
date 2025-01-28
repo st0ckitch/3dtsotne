@@ -4,7 +4,6 @@ import Board from './game/Board.js';
 
 class DungeonGame {
     constructor() {
-        // Basic Three.js setup
         this.scene = new THREE.Scene();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.renderer = new THREE.WebGLRenderer({
@@ -18,63 +17,32 @@ class DungeonGame {
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.setClearColor(0x000000);
-        document.getElementById('game-container').appendChild(this.renderer.domElement);
+        
+        const container = document.getElementById('game-container');
+        container.appendChild(this.renderer.domElement);
 
-        // Camera position
-        this.camera.position.set(0, 20, 20);
+        // Set up camera
+        this.camera.position.set(0, 25, 25);
         this.camera.lookAt(0, 0, 0);
 
-        // Add lights
-        // Ambient light
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-        this.scene.add(ambientLight);
-
-        // Main directional light (like sunlight)
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1);
-        mainLight.position.set(0, 20, 0);
-        mainLight.castShadow = true;
-        mainLight.shadow.mapSize.width = 2048;
-        mainLight.shadow.mapSize.height = 2048;
-        mainLight.shadow.camera.near = 0.5;
-        mainLight.shadow.camera.far = 100;
-        mainLight.shadow.camera.left = -20;
-        mainLight.shadow.camera.right = 20;
-        mainLight.shadow.camera.top = 20;
-        mainLight.shadow.camera.bottom = -20;
-        this.scene.add(mainLight);
-
-        // Add four point lights at corners
-        const pointLights = [];
-        const pointLightPositions = [
-            { x: 10, z: 10 },
-            { x: -10, z: 10 },
-            { x: 10, z: -10 },
-            { x: -10, z: -10 }
-        ];
-
-        pointLightPositions.forEach(pos => {
-            const light = new THREE.PointLight(0xffaa00, 1, 20);
-            light.position.set(pos.x, 5, pos.z);
-            light.castShadow = true;
-            this.scene.add(light);
-            pointLights.push(light);
-        });
+        // Setup lighting - IMPROVED LIGHTING
+        this.setupLighting();
 
         // Add OrbitControls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
         this.controls.maxPolarAngle = Math.PI / 2;
-        this.controls.minDistance = 5;
+        this.controls.minDistance = 10;
         this.controls.maxDistance = 50;
 
         // Create game board
         this.board = new Board(this.scene);
 
-        // Add ground plane
+        // Add ground plane with better material
         const planeGeometry = new THREE.PlaneGeometry(100, 100);
         const planeMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x111111,
+            color: 0x222222,
             roughness: 0.8,
             metalness: 0.2
         });
@@ -84,16 +52,59 @@ class DungeonGame {
         plane.receiveShadow = true;
         this.scene.add(plane);
 
-        // Start animation loop
         this.animate();
-
-        // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
+    }
+
+    setupLighting() {
+        // Ambient light - brighter
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        this.scene.add(ambientLight);
+
+        // Main directional light
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        mainLight.position.set(10, 30, 10);
+        mainLight.castShadow = true;
+        
+        // Improve shadow quality
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.camera.near = 0.5;
+        mainLight.shadow.camera.far = 100;
+        mainLight.shadow.camera.left = -30;
+        mainLight.shadow.camera.right = 30;
+        mainLight.shadow.camera.top = 30;
+        mainLight.shadow.camera.bottom = -30;
+        
+        this.scene.add(mainLight);
+
+        // Add hemisphere light for better ambient lighting
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.5);
+        this.scene.add(hemiLight);
+
+        // Add point lights at corners for better path visibility
+        const pointLightPositions = [
+            { x: 15, y: 10, z: 15 },
+            { x: -15, y: 10, z: 15 },
+            { x: 15, y: 10, z: -15 },
+            { x: -15, y: 10, z: -15 }
+        ];
+
+        pointLightPositions.forEach(pos => {
+            const pointLight = new THREE.PointLight(0xffaa66, 0.8, 30);
+            pointLight.position.set(pos.x, pos.y, pos.z);
+            pointLight.castShadow = true;
+            this.scene.add(pointLight);
+        });
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
+
+        // Update controls
         this.controls.update();
+
+        // Render
         this.renderer.render(this.scene, this.camera);
     }
 
