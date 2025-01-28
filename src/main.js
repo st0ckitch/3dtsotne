@@ -2,87 +2,75 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import Board from './game/Board.js';
 import Player from './game/Player.js';
+import Environment from './components/Environment.js';
+import { gsap } from 'gsap';
 
 class DungeonGame {
     constructor() {
+        this.initialize();
+    }
+
+    initialize() {
+        // Scene setup
         this.scene = new THREE.Scene();
+        
+        // Camera setup
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.set(0, 30, 30);
+        this.camera.lookAt(0, 0, 0);
+
+        // Renderer setup
         this.renderer = new THREE.WebGLRenderer({
             antialias: true,
-            alpha: true
+            powerPreference: "high-performance"
         });
-
-        // Configure renderer
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.shadowMap.enabled = true;
         this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.setClearColor(0x000000);
-        
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.0;
         document.getElementById('game-container').appendChild(this.renderer.domElement);
 
-        // Set up camera
-        this.camera.position.set(0, 25, 25);
-        this.camera.lookAt(0, 0, 0);
-
-        this.setupLighting();
+        // Controls setup
         this.setupControls();
-        this.setupGame();
-        
+
+        // Game state
+        this.gameState = {
+            currentTurn: 'player',
+            isAnimating: false,
+            gameOver: false
+        };
+
+        // Initialize game elements
+        this.initializeGame();
+
+        // Event listeners
+        this.setupEventListeners();
+
         // Start animation loop
         this.animate();
-
-        // Handle window resize
-        window.addEventListener('resize', () => this.onWindowResize());
-    }
-
-    setupLighting() {
-        // Ambient light - brighter
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
-        this.scene.add(ambientLight);
-
-        // Main directional light
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        mainLight.position.set(10, 30, 10);
-        mainLight.castShadow = true;
-        
-        mainLight.shadow.mapSize.width = 2048;
-        mainLight.shadow.mapSize.height = 2048;
-        mainLight.shadow.camera.near = 0.5;
-        mainLight.shadow.camera.far = 100;
-        mainLight.shadow.camera.left = -30;
-        mainLight.shadow.camera.right = 30;
-        mainLight.shadow.camera.top = 30;
-        mainLight.shadow.camera.bottom = -30;
-        
-        this.scene.add(mainLight);
-
-        // Add point lights at corners
-        const pointLightPositions = [
-            { x: 15, y: 10, z: 15 },
-            { x: -15, y: 10, z: 15 },
-            { x: 15, y: 10, z: -15 },
-            { x: -15, y: 10, z: -15 }
-        ];
-
-        pointLightPositions.forEach(pos => {
-            const pointLight = new THREE.PointLight(0xffaa66, 1, 30);
-            pointLight.position.set(pos.x, pos.y, pos.z);
-            pointLight.castShadow = true;
-            this.scene.add(pointLight);
-        });
     }
 
     setupControls() {
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.maxPolarAngle = Math.PI / 2;
-        this.controls.minDistance = 10;
+        this.controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent camera going below ground
+        this.controls.minDistance = 15;
         this.controls.maxDistance = 50;
+        this.controls.target.set(0, 0, 0);
+        
+        // Smooth camera movement
+        this.controls.enableSmoothing = true;
+        this.controls.smoothingFactor = 0.05;
     }
 
-    setupGame() {
+    initializeGame() {
+        // Create environment first
+        this.environment = new Environment(this.scene);
+
         // Create game board
         this.board = new Board(this.scene);
 
@@ -90,53 +78,233 @@ class DungeonGame {
         this.player = new Player(this.scene, false);
         this.bot = new Player(this.scene, true);
 
-        // Set initial positions
+        // Position players at start
         const startCell = this.board.getCellAt(0);
         if (startCell) {
-            this.player.moveTo(startCell);
-            this.bot.moveTo(startCell);
+            const startPos = startCell.position.clone();
+            this.player.moveTo(startPos.add(new THREE.Vector3(0, 1, 0)));
+            this.bot.moveTo(startPos.add(new THREE.Vector3(0, 1, 0)));
         }
 
-        // Add ground plane
-        const planeGeometry = new THREE.PlaneGeometry(100, 100);
-        const planeMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x222222,
-            roughness: 0.8,
-            metalness: 0.2
-        });
-        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-        plane.rotation.x = -Math.PI / 2;
-        plane.position.y = -0.2;
-        plane.receiveShadow = true;
-        this.scene.add(plane);
+        // Initial camera focus
+        this.focusCameraOnAction();
+    }
 
-        // Setup dice roll button
-        document.getElementById('roll-dice').addEventListener('click', () => this.handleDiceRoll());
+    setupEventListeners() {
+        // Dice roll button
+        const rollButton = document.getElementById('roll-dice');
+        if (rollButton) {
+            rollButton.addEventListener('click', () => this.handleDiceRoll());
+        }
+
+        // Window resize
+        window.addEventListener('resize', () => this.onWindowResize());
+
+        // Keyboard controls
+        window.addEventListener('keydown', (e) => this.handleKeyPress(e));
     }
 
     handleDiceRoll() {
+        if (this.gameState.isAnimating || this.gameState.gameOver) return;
+
+        this.gameState.isAnimating = true;
         const roll = Math.floor(Math.random() * 6) + 1;
-        const targetCell = this.board.getCellAt(Math.min(this.player.getPosition() + roll, this.board.pathCells.length - 1));
-        
-        if (targetCell) {
-            this.player.moveTo(targetCell);
+
+        // Visual feedback for dice roll
+        const rollButton = document.getElementById('roll-dice');
+        if (rollButton) {
+            rollButton.textContent = `Rolled: ${roll}`;
+            gsap.from(rollButton, {
+                scale: 1.2,
+                duration: 0.2,
+                ease: "power2.out"
+            });
         }
 
-        // Bot's turn after a delay
-        setTimeout(() => {
-            const botRoll = Math.floor(Math.random() * 6) + 1;
-            const botTargetCell = this.board.getCellAt(Math.min(this.bot.getPosition() + botRoll, this.board.pathCells.length - 1));
-            
-            if (botTargetCell) {
-                this.bot.moveTo(botTargetCell);
-            }
-        }, 1500);
+        if (this.gameState.currentTurn === 'player') {
+            this.handlePlayerTurn(roll);
+        } else {
+            this.handleBotTurn(roll);
+        }
     }
 
-    animate() {
-        requestAnimationFrame(() => this.animate());
-        this.controls.update();
-        this.renderer.render(this.scene, this.camera);
+    async handlePlayerTurn(roll) {
+        const currentPos = this.player.getPosition();
+        const targetIndex = Math.min(currentPos + roll, this.board.pathCells.length - 1);
+        const targetCell = this.board.getCellAt(targetIndex);
+
+        if (targetCell) {
+            // Highlight path
+            this.board.highlightPath(currentPos, targetIndex);
+
+            // Move player
+            await this.player.moveTo(targetCell.position);
+
+            // Check for goblin
+            if (targetCell.hasGoblin) {
+                const damage = Math.floor(Math.random() * 3) + 1;
+                await this.player.takeDamage(damage);
+            }
+
+            // Check win condition
+            if (targetIndex === this.board.pathCells.length - 1) {
+                this.handleGameOver('player');
+                return;
+            }
+
+            // Switch turns
+            this.gameState.currentTurn = 'bot';
+            this.gameState.isAnimating = false;
+
+            // Auto-trigger bot turn after delay
+            setTimeout(() => this.handleDiceRoll(), 1000);
+        }
+    }
+
+    async handleBotTurn(roll) {
+        const currentPos = this.bot.getPosition();
+        const targetIndex = Math.min(currentPos + roll, this.board.pathCells.length - 1);
+        const targetCell = this.board.getCellAt(targetIndex);
+
+        if (targetCell) {
+            // Highlight path
+            this.board.highlightPath(currentPos, targetIndex);
+
+            // Move bot
+            await this.bot.moveTo(targetCell.position);
+
+            // Check for goblin
+            if (targetCell.hasGoblin) {
+                const damage = Math.floor(Math.random() * 3) + 1;
+                await this.bot.takeDamage(damage);
+            }
+
+            // Check win condition
+            if (targetIndex === this.board.pathCells.length - 1) {
+                this.handleGameOver('bot');
+                return;
+            }
+
+            // Switch turns
+            this.gameState.currentTurn = 'player';
+            this.gameState.isAnimating = false;
+        }
+    }
+
+    handleGameOver(winner) {
+        this.gameState.gameOver = true;
+        this.gameState.isAnimating = false;
+
+        // Visual feedback
+        const message = winner === 'player' ? 'You Win!' : 'Bot Wins!';
+        const rollButton = document.getElementById('roll-dice');
+        if (rollButton) {
+            rollButton.textContent = message;
+            rollButton.style.backgroundColor = winner === 'player' ? '#4CAF50' : '#f44336';
+        }
+
+        // Celebration effects
+        if (winner === 'player') {
+            this.createVictoryEffect();
+        }
+    }
+
+    createVictoryEffect() {
+        // Create particle burst effect
+        const particleCount = 100;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        const colors = new Float32Array(particleCount * 3);
+        const velocities = new Float32Array(particleCount * 3);
+
+        for (let i = 0; i < particleCount * 3; i += 3) {
+            // Random position around winner
+            const angle = Math.random() * Math.PI * 2;
+            positions[i] = Math.cos(angle) * 2;
+            positions[i + 1] = 0;
+            positions[i + 2] = Math.sin(angle) * 2;
+
+            // Random colors
+            colors[i] = Math.random();
+            colors[i + 1] = Math.random();
+            colors[i + 2] = Math.random();
+
+            // Random velocities
+            velocities[i] = (Math.random() - 0.5) * 0.2;
+            velocities[i + 1] = Math.random() * 0.2;
+            velocities[i + 2] = (Math.random() - 0.5) * 0.2;
+        }
+
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 0.1,
+            vertexColors: true,
+            transparent: true,
+            opacity: 1
+        });
+
+        const particles = new THREE.Points(geometry, material);
+        particles.position.copy(this.player.getPosition());
+        this.scene.add(particles);
+
+        // Animate particles
+        const animate = () => {
+            const positions = particles.geometry.attributes.position.array;
+            for (let i = 0; i < positions.length; i += 3) {
+                positions[i] += velocities[i];
+                positions[i + 1] += velocities[i + 1];
+                positions[i + 2] += velocities[i + 2];
+                velocities[i + 1] -= 0.001; // Gravity
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+            
+            material.opacity -= 0.01;
+            if (material.opacity <= 0) {
+                this.scene.remove(particles);
+                return;
+            }
+            requestAnimationFrame(animate);
+        };
+        animate();
+    }
+
+    focusCameraOnAction() {
+        const playerPos = this.player.getPosition();
+        const targetPos = new THREE.Vector3(
+            playerPos.x,
+            this.camera.position.y,
+            playerPos.z + 20
+        );
+        
+        gsap.to(this.camera.position, {
+            x: targetPos.x,
+            z: targetPos.z,
+            duration: 2,
+            ease: "power2.inOut"
+        });
+    }
+
+    handleKeyPress(event) {
+        // Camera controls
+        switch(event.key) {
+            case 'r':
+                this.focusCameraOnAction();
+                break;
+            case 'c':
+                this.toggleCameraMode();
+                break;
+        }
+    }
+
+    toggleCameraMode() {
+        if (this.controls.enabled) {
+            this.controls.enabled = false;
+            this.focusCameraOnAction();
+        } else {
+            this.controls.enabled = true;
+        }
     }
 
     onWindowResize() {
@@ -144,9 +312,31 @@ class DungeonGame {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
+
+    animate() {
+        requestAnimationFrame(() => this.animate());
+
+        // Update controls
+        if (this.controls) {
+            this.controls.update();
+        }
+
+        // Update environment effects
+        if (this.environment) {
+            this.environment.update();
+        }
+
+        // Update board effects
+        if (this.board) {
+            this.board.update();
+        }
+
+        // Render
+        this.renderer.render(this.scene, this.camera);
+    }
 }
 
-// Initialize only after DOM is fully loaded
+// Initialize game when DOM is loaded
 window.addEventListener('DOMContentLoaded', () => {
     new DungeonGame();
 });
