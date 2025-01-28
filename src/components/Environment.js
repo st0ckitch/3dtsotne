@@ -7,21 +7,16 @@ export default class Environment {
         this.scene.add(this.obstacles);
         
         this.createEnvironment();
-        this.createFog();
-        this.createTorches();
+        this.setupLighting();
     }
 
     createEnvironment() {
         // Create floor
         const floorGeometry = new THREE.PlaneGeometry(100, 100);
-        const floorTexture = new THREE.TextureLoader().load('/textures/dungeon-floor.jpg');
-        floorTexture.wrapS = floorTexture.wrapT = THREE.RepeatWrapping;
-        floorTexture.repeat.set(20, 20);
-        
-        const floorMaterial = new THREE.MeshStandardMaterial({
-            map: floorTexture,
-            roughness: 0.8,
-            metalness: 0.2
+        const floorMaterial = new THREE.MeshPhongMaterial({
+            color: 0x2a1810,
+            specular: 0x222222,
+            shininess: 10
         });
         
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -29,25 +24,46 @@ export default class Environment {
         floor.receiveShadow = true;
         this.scene.add(floor);
 
-        // Add random obstacles
+        // Add some ambient objects for atmosphere
         this.addRocks();
-        this.addTrees();
         this.addPillars();
     }
 
-    createFog() {
-        this.scene.fog = new THREE.FogExp2(0x000000, 0.02);
+    setupLighting() {
+        // Main ambient light
+        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.6);
+        this.scene.add(ambientLight);
+
+        // Main directional light (like sunlight)
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        mainLight.position.set(20, 30, 20);
+        mainLight.castShadow = true;
+        
+        // Improve shadow quality
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.camera.near = 0.5;
+        mainLight.shadow.camera.far = 100;
+        mainLight.shadow.camera.left = -30;
+        mainLight.shadow.camera.right = 30;
+        mainLight.shadow.camera.top = 30;
+        mainLight.shadow.camera.bottom = -30;
+        
+        this.scene.add(mainLight);
+
+        // Add torches around the scene
+        this.addTorches();
     }
 
     addRocks() {
-        const rockGeometry = new THREE.DodecahedronGeometry(1, 0);
-        const rockMaterial = new THREE.MeshStandardMaterial({
-            color: 0x666666,
-            roughness: 0.9,
-            metalness: 0.1
+        const rockGeometry = new THREE.DodecahedronGeometry(1, 1);
+        const rockMaterial = new THREE.MeshPhongMaterial({
+            color: 0x555555,
+            specular: 0x333333,
+            shininess: 15
         });
 
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 15; i++) {
             const rock = new THREE.Mesh(rockGeometry, rockMaterial);
             rock.scale.set(
                 Math.random() * 0.5 + 0.5,
@@ -68,156 +84,89 @@ export default class Environment {
             );
             
             rock.castShadow = true;
+            rock.receiveShadow = true;
             this.obstacles.add(rock);
         }
     }
 
-    addTrees() {
-        // Dead trees for dark atmosphere
-        const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.3, 4, 6);
-        const trunkMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4a3525,
-            roughness: 1,
-            metalness: 0
+    addPillars() {
+        const pillarGeometry = new THREE.CylinderGeometry(1, 1.2, 8, 8);
+        const pillarMaterial = new THREE.MeshPhongMaterial({
+            color: 0x444444,
+            specular: 0x222222,
+            shininess: 20
         });
 
-        const branchGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2, 4);
-        const branchMaterial = trunkMaterial.clone();
-
-        for (let i = 0; i < 15; i++) {
-            const tree = new THREE.Group();
-            
-            // Trunk
-            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.castShadow = true;
-            tree.add(trunk);
-
-            // Add random branches
-            for (let j = 0; j < 5; j++) {
-                const branch = new THREE.Mesh(branchGeometry, branchMaterial);
-                branch.position.y = Math.random() * 2;
-                branch.rotation.set(
-                    Math.random() * Math.PI / 2,
-                    Math.random() * Math.PI * 2,
-                    Math.random() * Math.PI / 4
-                );
-                tree.add(branch);
-            }
-
-            tree.position.set(
-                Math.random() * 80 - 40,
-                0,
-                Math.random() * 80 - 40
-            );
-            
-            tree.rotation.y = Math.random() * Math.PI * 2;
-            this.obstacles.add(tree);
-        }
-    }
-  
-addPillars() {
-        const pillarGeometry = new THREE.CylinderGeometry(0.8, 1, 8, 6);
-        const pillarMaterial = new THREE.MeshStandardMaterial({
-            color: 0x777777,
-            roughness: 0.7,
-            metalness: 0.3
-        });
-
-        for (let i = 0; i < 10; i++) {
+        for (let i = 0; i < 8; i++) {
             const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
             pillar.position.set(
-                Math.random() * 80 - 40,
+                Math.random() * 60 - 30,
                 4,
-                Math.random() * 80 - 40
+                Math.random() * 60 - 30
             );
             
-            // Add decay and damage to pillars
-            const deformGeometry = pillar.geometry.clone();
-            const positions = deformGeometry.attributes.position.array;
-            
-            for (let j = 0; j < positions.length; j += 3) {
-                positions[j] += (Math.random() - 0.5) * 0.2;
-                positions[j + 1] += (Math.random() - 0.5) * 0.2;
-                positions[j + 2] += (Math.random() - 0.5) * 0.2;
-            }
-            
-            pillar.geometry = deformGeometry;
             pillar.castShadow = true;
             pillar.receiveShadow = true;
             this.obstacles.add(pillar);
         }
     }
 
-    createTorches() {
-        for (let i = 0; i < 8; i++) {
-            const torch = this.createTorch();
-            torch.position.set(
-                Math.random() * 60 - 30,
-                3,
-                Math.random() * 60 - 30
-            );
+    addTorches() {
+        const positions = [
+            { x: 10, z: 10 },
+            { x: -10, z: 10 },
+            { x: 10, z: -10 },
+            { x: -10, z: -10 }
+        ];
+
+        positions.forEach(pos => {
+            // Torch base
+            const torchGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
+            const torchMaterial = new THREE.MeshPhongMaterial({
+                color: 0x4a3525,
+                specular: 0x222222,
+                shininess: 10
+            });
+            
+            const torch = new THREE.Mesh(torchGeometry, torchMaterial);
+            torch.position.set(pos.x, 3, pos.z);
+            
+            // Torch light
+            const light = new THREE.PointLight(0xff6600, 1, 15);
+            light.position.y = 1.5;
+            torch.add(light);
+
+            // Add flame effect
+            const flameGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+            const flameMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff3300,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            const flame = new THREE.Mesh(flameGeometry, flameMaterial);
+            flame.position.y = 1.5;
+            torch.add(flame);
+
+            // Animate flame
+            this.animateFlame(flame, light);
+
             this.obstacles.add(torch);
-        }
+        });
     }
 
-    createTorch() {
-        const torch = new THREE.Group();
-
-        // Torch handle
-        const handleGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.5, 8);
-        const handleMaterial = new THREE.MeshStandardMaterial({
-            color: 0x4a3525,
-            roughness: 1
-        });
-        const handle = new THREE.Mesh(handleGeometry, handleMaterial);
-        torch.add(handle);
-
-        // Torch head
-        const headGeometry = new THREE.CylinderGeometry(0.2, 0.15, 0.3, 8);
-        const headMaterial = new THREE.MeshStandardMaterial({
-            color: 0x333333,
-            roughness: 1
-        });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.y = 0.4;
-        torch.add(head);
-
-        // Fire light
-        const light = new THREE.PointLight(0xff6600, 1, 10);
-        light.position.y = 0.5;
-        light.castShadow = true;
-        
-        // Animate torch light
-        this.animateTorchLight(light);
-        
-        torch.add(light);
-        return torch;
-    }
-
-    animateTorchLight(light) {
-        const flicker = () => {
-            const intensity = 1 + Math.random() * 0.2;
-            light.intensity = intensity;
+    animateFlame(flame, light) {
+        const animate = () => {
+            // Random scale fluctuation
+            flame.scale.x = 1 + Math.sin(Date.now() * 0.01) * 0.1;
+            flame.scale.y = 1 + Math.cos(Date.now() * 0.01) * 0.1;
             
-            const distance = 8 + Math.random() * 2;
-            light.distance = distance;
+            // Random light intensity
+            light.intensity = 1 + Math.sin(Date.now() * 0.01) * 0.2;
             
-            setTimeout(flicker, Math.random() * 100 + 50);
+            requestAnimationFrame(animate);
         };
         
-        flicker();
-    }
-
-    update() {
-        // Update any dynamic environment elements
-        this.obstacles.children.forEach(obstacle => {
-            if (obstacle.isFlickering) {
-                obstacle.children.forEach(child => {
-                    if (child.isLight) {
-                        child.intensity = 1 + Math.random() * 0.2;
-                    }
-                });
-            }
-        });
+        animate();
     }
 }
