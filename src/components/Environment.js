@@ -13,10 +13,10 @@ export default class Environment {
     createEnvironment() {
         // Create floor
         const floorGeometry = new THREE.PlaneGeometry(100, 100);
-        const floorMaterial = new THREE.MeshPhongMaterial({
+        const floorMaterial = new THREE.MeshStandardMaterial({
             color: 0x2a1810,
-            specular: 0x222222,
-            shininess: 10
+            roughness: 0.8,
+            metalness: 0.2
         });
         
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -29,12 +29,12 @@ export default class Environment {
     }
 
     setupLighting() {
-        // Main ambient light
-        const ambientLight = new THREE.AmbientLight(0xcccccc, 0.6);
+        // Main ambient light - increased intensity
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         this.scene.add(ambientLight);
 
-        // Main directional light
-        const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        // Main directional light - increased intensity
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
         mainLight.position.set(20, 30, 20);
         mainLight.castShadow = true;
         mainLight.shadow.mapSize.width = 2048;
@@ -48,16 +48,21 @@ export default class Environment {
         
         this.scene.add(mainLight);
 
-        // Add torches
+        // Additional fill light for better visibility
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        fillLight.position.set(-20, 20, -20);
+        this.scene.add(fillLight);
+
+        // Add torches for atmospheric lighting
         this.addTorches();
     }
 
     addRocks() {
         const rockGeometry = new THREE.DodecahedronGeometry(1, 1);
-        const rockMaterial = new THREE.MeshPhongMaterial({
+        const rockMaterial = new THREE.MeshStandardMaterial({
             color: 0x555555,
-            specular: 0x333333,
-            shininess: 15
+            roughness: 0.8,
+            metalness: 0.2
         });
 
         for (let i = 0; i < 15; i++) {
@@ -88,10 +93,10 @@ export default class Environment {
 
     addPillars() {
         const pillarGeometry = new THREE.CylinderGeometry(1, 1.2, 8, 8);
-        const pillarMaterial = new THREE.MeshPhongMaterial({
+        const pillarMaterial = new THREE.MeshStandardMaterial({
             color: 0x444444,
-            specular: 0x222222,
-            shininess: 20
+            roughness: 0.7,
+            metalness: 0.3
         });
 
         for (let i = 0; i < 8; i++) {
@@ -113,23 +118,27 @@ export default class Environment {
             { x: 10, z: 10 },
             { x: -10, z: 10 },
             { x: 10, z: -10 },
-            { x: -10, z: -10 }
+            { x: -10, z: -10 },
+            { x: 0, z: 15 },   // Additional torches
+            { x: 0, z: -15 },
+            { x: 15, z: 0 },
+            { x: -15, z: 0 }
         ];
 
         positions.forEach(pos => {
             // Torch base
             const torchGeometry = new THREE.CylinderGeometry(0.1, 0.1, 2, 8);
-            const torchMaterial = new THREE.MeshPhongMaterial({
+            const torchMaterial = new THREE.MeshStandardMaterial({
                 color: 0x4a3525,
-                specular: 0x222222,
-                shininess: 10
+                roughness: 0.8,
+                metalness: 0.2
             });
             
             const torch = new THREE.Mesh(torchGeometry, torchMaterial);
             torch.position.set(pos.x, 3, pos.z);
             
-            // Torch light
-            const light = new THREE.PointLight(0xff6600, 1, 15);
+            // Torch light - increased intensity and range
+            const light = new THREE.PointLight(0xff6600, 2, 20);
             light.position.y = 1.5;
             torch.add(light);
 
@@ -154,7 +163,7 @@ export default class Environment {
         const animate = () => {
             flame.scale.x = 1 + Math.sin(Date.now() * 0.01) * 0.1;
             flame.scale.y = 1 + Math.cos(Date.now() * 0.01) * 0.1;
-            light.intensity = 1 + Math.sin(Date.now() * 0.01) * 0.2;
+            light.intensity = 1.5 + Math.sin(Date.now() * 0.01) * 0.5;
             requestAnimationFrame(animate);
         };
         animate();
