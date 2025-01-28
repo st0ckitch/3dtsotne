@@ -1,55 +1,29 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import Game from './game/Game.js';
 
-class DungeonCrawler {
+class DungeonGame {
     constructor() {
-        // Wait for DOM to be fully loaded
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => this.initialize());
-        } else {
-            this.initialize();
-        }
-    }
-
-    initialize() {
-        // Scene setup
+        // Basic Three.js setup
         this.scene = new THREE.Scene();
-        
-        // Camera setup
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.set(0, 30, 30);
-        this.camera.lookAt(0, 0, 0);
-
-        // Renderer setup
-        this.renderer = new THREE.WebGLRenderer({ 
+        this.renderer = new THREE.WebGLRenderer({
             antialias: true,
             alpha: true
         });
+
+        // Configure renderer
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.outputColorSpace = THREE.SRGBColorSpace;  // Updated from outputEncoding
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.0;
-        this.renderer.setClearColor(0x000000, 1);
+        this.renderer.setClearColor(0x000000);
+        document.getElementById('game-container').appendChild(this.renderer.domElement);
 
-        // Add renderer to DOM
-        const container = document.getElementById('game-container');
-        if (container) {
-            container.appendChild(this.renderer.domElement);
-        }
+        // Camera position
+        this.camera.position.set(0, 20, 20);
+        this.camera.lookAt(0, 0, 0);
 
-        // Controls setup
-        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
-        this.controls.enableDamping = true;
-        this.controls.dampingFactor = 0.05;
-        this.controls.maxPolarAngle = Math.PI / 2;
-        this.controls.minDistance = 10;
-        this.controls.maxDistance = 50;
-
-        // Basic lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        // Add lights
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1);
         this.scene.add(ambientLight);
 
         const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
@@ -57,42 +31,46 @@ class DungeonCrawler {
         directionalLight.castShadow = true;
         this.scene.add(directionalLight);
 
-        // Initialize game
-        this.game = new Game(this.scene);
+        // Add OrbitControls
+        this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+        this.controls.enableDamping = true;
+
+        // Add a test object to see if rendering works
+        const testGeometry = new THREE.BoxGeometry(5, 5, 5);
+        const testMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const testCube = new THREE.Mesh(testGeometry, testMaterial);
+        this.scene.add(testCube);
+
+        // Ground plane
+        const planeGeometry = new THREE.PlaneGeometry(50, 50);
+        const planeMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
+        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.y = -2;
+        plane.receiveShadow = true;
+        this.scene.add(plane);
 
         // Start animation loop
         this.animate();
 
-        // Event listeners
+        // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
     }
 
     animate() {
         requestAnimationFrame(() => this.animate());
-        
-        if (this.controls) {
-            this.controls.update();
-        }
-
-        if (this.game) {
-            this.game.update();
-        }
-        
-        if (this.renderer && this.scene && this.camera) {
-            this.renderer.render(this.scene, this.camera);
-        }
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
     }
 
     onWindowResize() {
-        if (this.camera && this.renderer) {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        }
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 }
 
-// Initialize game
+// Initialize only after DOM is fully loaded
 window.addEventListener('DOMContentLoaded', () => {
-    new DungeonCrawler();
+    new DungeonGame();
 });
