@@ -24,7 +24,6 @@ export default class Environment {
         floor.receiveShadow = true;
         this.scene.add(floor);
 
-        // Add some ambient objects for atmosphere
         this.addRocks();
         this.addPillars();
     }
@@ -34,12 +33,10 @@ export default class Environment {
         const ambientLight = new THREE.AmbientLight(0xcccccc, 0.6);
         this.scene.add(ambientLight);
 
-        // Main directional light (like sunlight)
+        // Main directional light
         const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
         mainLight.position.set(20, 30, 20);
         mainLight.castShadow = true;
-        
-        // Improve shadow quality
         mainLight.shadow.mapSize.width = 2048;
         mainLight.shadow.mapSize.height = 2048;
         mainLight.shadow.camera.near = 0.5;
@@ -51,7 +48,7 @@ export default class Environment {
         
         this.scene.add(mainLight);
 
-        // Add torches around the scene
+        // Add torches
         this.addTorches();
     }
 
@@ -136,7 +133,7 @@ export default class Environment {
             light.position.y = 1.5;
             torch.add(light);
 
-            // Add flame effect
+            // Flame effect
             const flameGeometry = new THREE.SphereGeometry(0.2, 8, 8);
             const flameMaterial = new THREE.MeshBasicMaterial({
                 color: 0xff3300,
@@ -148,25 +145,18 @@ export default class Environment {
             flame.position.y = 1.5;
             torch.add(flame);
 
-            // Animate flame
             this.animateFlame(flame, light);
-
             this.obstacles.add(torch);
         });
     }
 
     animateFlame(flame, light) {
         const animate = () => {
-            // Random scale fluctuation
             flame.scale.x = 1 + Math.sin(Date.now() * 0.01) * 0.1;
             flame.scale.y = 1 + Math.cos(Date.now() * 0.01) * 0.1;
-            
-            // Random light intensity
             light.intensity = 1 + Math.sin(Date.now() * 0.01) * 0.2;
-            
             requestAnimationFrame(animate);
         };
-        
         animate();
     }
 }
