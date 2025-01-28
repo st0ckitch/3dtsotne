@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { gsap } from 'gsap';
 
 export default class Environment {
     constructor(scene) {
@@ -11,22 +12,22 @@ export default class Environment {
         // Store visible objects for fog of war
         this.visibleObjects = new Set();
         
-        // Initialize environment
+        // Initialize environment in order
         this.createBasicEnvironment();
         this.setupLighting();
         this.createAtmosphere();
-        this.addEnvironmentDecorations();
+        this.addDecorations(); // Changed from addEnvironmentDecorations
     }
 
     createBasicEnvironment() {
-        // Create main dungeon floor
-        const floorGeometry = new THREE.PlaneGeometry(200, 200, 100, 100);
+        // Create main dungeon floor with better visibility
+        const floorGeometry = new THREE.PlaneGeometry(200, 200);
         const floorMaterial = new THREE.MeshStandardMaterial({
-            color: 0x1a0f0f,
-            roughness: 0.9,
-            metalness: 0.1,
+            color: 0x2a1f1f, // Slightly lighter color
+            roughness: 0.8,
+            metalness: 0.2,
             bumpMap: this.createStoneTexture(),
-            bumpScale: 0.2
+            bumpScale: 0.3
         });
         
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
@@ -38,30 +39,30 @@ export default class Environment {
         this.addFloorDetails();
     }
 
-    createStoneTexture() {
+createStoneTexture() {
         const canvas = document.createElement('canvas');
         canvas.width = 512;
         canvas.height = 512;
         const ctx = canvas.getContext('2d');
 
-        // Create base dark texture
-        ctx.fillStyle = '#1a0f0f';
+        // Create base texture with lighter color
+        ctx.fillStyle = '#2a1f1f';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Add stone texture pattern
+        // Add stone texture pattern with better contrast
         for (let i = 0; i < 1000; i++) {
             const x = Math.random() * canvas.width;
             const y = Math.random() * canvas.height;
             const size = Math.random() * 4 + 2;
-            const alpha = Math.random() * 0.3 + 0.1;
+            const alpha = Math.random() * 0.4 + 0.2; // Increased visibility
 
             ctx.beginPath();
             ctx.arc(x, y, size, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
             ctx.fill();
         }
 
-        // Add cracks
+        // Add visible cracks
         for (let i = 0; i < 20; i++) {
             const startX = Math.random() * canvas.width;
             const startY = Math.random() * canvas.height;
@@ -74,7 +75,7 @@ export default class Environment {
                 startX + Math.cos(angle) * length,
                 startY + Math.sin(angle) * length
             );
-            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.lineWidth = Math.random() * 2 + 1;
             ctx.stroke();
         }
@@ -86,13 +87,15 @@ export default class Environment {
     }
 
     addFloorDetails() {
-        // Add random debris and small details on the floor
+        // Add random debris with better visibility
         const debrisCount = 200;
         const debrisGeometry = new THREE.CircleGeometry(0.2, 4);
         const debrisMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2a1810,
-            roughness: 1,
-            metalness: 0
+            color: 0x3a2820,
+            roughness: 0.9,
+            metalness: 0.1,
+            emissive: 0x1a1210,
+            emissiveIntensity: 0.2
         });
 
         for (let i = 0; i < debrisCount; i++) {
@@ -102,13 +105,14 @@ export default class Environment {
             
             debris.position.set(
                 Math.cos(angle) * radius,
-                0.01, // Just above floor
+                0.01,
                 Math.sin(angle) * radius
             );
             
             debris.rotation.x = -Math.PI / 2;
             debris.rotation.z = Math.random() * Math.PI;
             debris.scale.setScalar(Math.random() * 0.5 + 0.5);
+            debris.receiveShadow = true;
             
             this.obstacles.add(debris);
         }
@@ -121,11 +125,13 @@ export default class Environment {
         const stainCount = 50;
         const stainGeometry = new THREE.PlaneGeometry(1, 1);
         const stainTexture = this.createStainTexture();
-        const stainMaterial = new THREE.MeshBasicMaterial({
+        const stainMaterial = new THREE.MeshStandardMaterial({
             map: stainTexture,
             transparent: true,
-            opacity: 0.3,
-            blending: THREE.MultiplyBlending
+            opacity: 0.5,
+            blending: THREE.MultiplyBlending,
+            emissive: 0x1a1210,
+            emissiveIntensity: 0.1
         });
 
         for (let i = 0; i < stainCount; i++) {
@@ -153,25 +159,24 @@ export default class Environment {
         canvas.height = 128;
         const ctx = canvas.getContext('2d');
 
-        // Create radial gradient for stain
         const gradient = ctx.createRadialGradient(
             64, 64, 0,
             64, 64, 64
         );
         
-        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.5)');
-        gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        gradient.addColorStop(0, 'rgba(58, 40, 32, 0.6)');
+        gradient.addColorStop(1, 'rgba(58, 40, 32, 0)');
         
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, 128, 128);
 
-        // Add noise to make it look more natural
+        // Add noise
         for (let i = 0; i < 1000; i++) {
             const x = Math.random() * canvas.width;
             const y = Math.random() * canvas.height;
-            const alpha = Math.random() * 0.1;
+            const alpha = Math.random() * 0.2;
             
-            ctx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
+            ctx.fillStyle = `rgba(58, 40, 32, ${alpha})`;
             ctx.fillRect(x, y, 1, 1);
         }
 
@@ -179,62 +184,63 @@ export default class Environment {
         return texture;
     }
 
-    setupLighting() {
-        // Main ambient light (increased intensity, warmer color)
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+setupLighting() {
+        // Main ambient light - significantly increased intensity
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
         this.scene.add(ambientLight);
 
-        // Moonlight effect (brighter, more neutral color)
-        const moonLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        moonLight.position.set(50, 100, 50);
-        moonLight.castShadow = true;
+        // Primary directional light
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        mainLight.position.set(50, 100, 50);
+        mainLight.castShadow = true;
         
         // Improve shadow quality
-        moonLight.shadow.mapSize.width = 2048;
-        moonLight.shadow.mapSize.height = 2048;
-        moonLight.shadow.camera.near = 0.5;
-        moonLight.shadow.camera.far = 200;
-        moonLight.shadow.camera.left = -50;
-        moonLight.shadow.camera.right = 50;
-        moonLight.shadow.camera.top = 50;
-        moonLight.shadow.camera.bottom = -50;
-        moonLight.shadow.bias = -0.0001;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        mainLight.shadow.camera.near = 0.5;
+        mainLight.shadow.camera.far = 200;
+        mainLight.shadow.camera.left = -50;
+        mainLight.shadow.camera.right = 50;
+        mainLight.shadow.camera.top = 50;
+        mainLight.shadow.camera.bottom = -50;
+        mainLight.shadow.bias = -0.0001;
         
-        this.scene.add(moonLight);
+        this.scene.add(mainLight);
 
-        // Add hemisphere light for better ambient lighting
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
+        // Hemisphere light for better ambient lighting
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
         this.scene.add(hemiLight);
 
-        // Add volumetric fog
+        // Additional fill light
+        const fillLight = new THREE.DirectionalLight(0xffffff, 0.5);
+        fillLight.position.set(-50, 50, -50);
+        this.scene.add(fillLight);
+
+        // Setup atmospheric effects
         this.setupFog();
     }
 
     setupFog() {
-        // Create less dense fog with a lighter color
-        this.scene.fog = new THREE.FogExp2(0x222222, 0.008);
-
-        // Add fog particles for atmosphere
+        // Create very light fog
+        this.scene.fog = new THREE.FogExp2(0x444444, 0.005);
         this.createFogParticles();
     }
 
     createFogParticles() {
-        const particleCount = 1000;
+        const particleCount = 500; // Reduced count for better performance
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const velocities = new Float32Array(particleCount * 3);
 
         for (let i = 0; i < particleCount * 3; i += 3) {
-            // Random position in a cylinder shape around the play area
             const angle = Math.random() * Math.PI * 2;
             const radius = Math.random() * 60 + 20;
             const height = Math.random() * 10;
 
-            positions[i] = Math.cos(angle) * radius;     // x
-            positions[i + 1] = height;                   // y
-            positions[i + 2] = Math.sin(angle) * radius; // z
+            positions[i] = Math.cos(angle) * radius;
+            positions[i + 1] = height;
+            positions[i + 2] = Math.sin(angle) * radius;
 
-            // Very slow random movement
             velocities[i] = (Math.random() - 0.5) * 0.01;
             velocities[i + 1] = (Math.random() - 0.5) * 0.01;
             velocities[i + 2] = (Math.random() - 0.5) * 0.01;
@@ -243,34 +249,27 @@ export default class Environment {
         geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
         
         const material = new THREE.PointsMaterial({
-            color: 0x666666,
+            color: 0xaaaaaa,
             size: 0.2,
             transparent: true,
-            opacity: 0.2,
+            opacity: 0.3,
             blending: THREE.AdditiveBlending,
             depthWrite: false
         });
 
         this.fogParticles = new THREE.Points(geometry, material);
         this.scene.add(this.fogParticles);
-
-        // Store velocities for animation
         this.fogParticles.userData.velocities = velocities;
     }
 
     createAtmosphere() {
-        // Add dust particles
         this.createDustParticles();
-        
-        // Add floating embers
         this.createEmbers();
-        
-        // Add background glow
         this.createBackgroundGlow();
     }
 
     createDustParticles() {
-        const particleCount = 500;
+        const particleCount = 300;
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(particleCount * 3);
         const alphas = new Float32Array(particleCount);
@@ -314,7 +313,7 @@ export default class Environment {
                 void main() {
                     float r = length(gl_PointCoord - vec2(0.5));
                     if (r > 0.5) discard;
-                    gl_FragColor = vec4(1.0, 1.0, 1.0, vAlpha * 0.1);
+                    gl_FragColor = vec4(1.0, 1.0, 1.0, vAlpha * 0.2);
                 }
             `,
             transparent: true,
@@ -325,8 +324,8 @@ export default class Environment {
         this.scene.add(this.dustParticles);
     }
 
-    createEmbers() {
-        const emberCount = 100;
+createEmbers() {
+        const emberCount = 50; // Reduced for performance
         const geometry = new THREE.BufferGeometry();
         const positions = new Float32Array(emberCount * 3);
         const colors = new Float32Array(emberCount * 3);
@@ -341,7 +340,7 @@ export default class Environment {
         geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
         const material = new THREE.PointsMaterial({
-            size: 0.1,
+            size: 0.2,
             vertexColors: true,
             transparent: true,
             opacity: 0.8,
@@ -353,41 +352,16 @@ export default class Environment {
         this.scene.add(this.embers);
     }
 
-    initializeEmber(positions, colors, velocities, lifetimes, index) {
-        // Random position near torches
-        const angle = Math.random() * Math.PI * 2;
-        const radius = Math.random() * 40 + 10;
-        
-        positions[index * 3] = Math.cos(angle) * radius;
-        positions[index * 3 + 1] = Math.random() * 5;
-        positions[index * 3 + 2] = Math.sin(angle) * radius;
-
-        // Orange-red color with variation
-        colors[index * 3] = 1;
-        colors[index * 3 + 1] = Math.random() * 0.3;
-        colors[index * 3 + 2] = 0;
-
-        // Upward and random horizontal movement
-        velocities[index * 3] = (Math.random() - 0.5) * 0.05;
-        velocities[index * 3 + 1] = Math.random() * 0.1 + 0.05;
-        velocities[index * 3 + 2] = (Math.random() - 0.5) * 0.05;
-
-        // Random lifetime
-        lifetimes[index] = Math.random() * 2 + 1;
-    }
-
     createBackgroundGlow() {
-        // Add subtle glow at the edges of visibility
         const glowGeometry = new THREE.PlaneGeometry(200, 200);
         const glowMaterial = new THREE.ShaderMaterial({
             uniforms: {
-                color: { value: new THREE.Color(0x220000) },
+                color: { value: new THREE.Color(0x443333) },
                 viewPosition: { value: new THREE.Vector3() }
             },
             vertexShader: `
                 varying vec2 vUv;
                 varying vec3 vPosition;
-                
                 void main() {
                     vUv = uv;
                     vPosition = position;
@@ -399,10 +373,9 @@ export default class Environment {
                 uniform vec3 viewPosition;
                 varying vec2 vUv;
                 varying vec3 vPosition;
-                
                 void main() {
                     float dist = length(vPosition - viewPosition);
-                    float alpha = smoothstep(20.0, 60.0, dist) * 0.3;
+                    float alpha = smoothstep(20.0, 60.0, dist) * 0.2;
                     gl_FragColor = vec4(color, alpha);
                 }
             `,
@@ -417,190 +390,15 @@ export default class Environment {
         this.scene.add(this.backgroundGlow);
     }
 
-    addEnvironmentDecorations() {
-        // Add pillars in a circle around the play area
+    // Renamed from addEnvironmentDecorations
+    addDecorations() {
         this.addPillars();
-        
-        // Add rocks and debris
         this.addRocks();
-        
-        // Add torches for lighting
         this.addTorches();
-
-        // Add wall ruins
-        this.addRuins();
-    }
-
-    addPillars() {
-        const pillarCount = 8;
-        for (let i = 0; i < pillarCount; i++) {
-            const angle = (i / pillarCount) * Math.PI * 2;
-            const radius = 30;
-            
-            const pillar = this.createPillar();
-            pillar.position.set(
-                Math.cos(angle) * radius,
-                0,
-                Math.sin(angle) * radius
-            );
-            
-            // Random slight rotation for variety
-            pillar.rotation.y = Math.random() * Math.PI * 2;
-            
-            this.obstacles.add(pillar);
-        }
-    }
-
-    createPillar() {
-        const pillar = new THREE.Group();
-
-        // Base
-        const baseHeight = 1.5;
-        const baseGeometry = new THREE.CylinderGeometry(1.2, 1.4, baseHeight, 8);
-        const baseMaterial = new THREE.MeshStandardMaterial({
-            color: 0x888888,
-            roughness: 0.7,
-            metalness: 0.3
-        });
-        const base = new THREE.Mesh(baseGeometry, baseMaterial);
-        base.position.y = baseHeight/2;
-        pillar.add(base);
-
-        // Main shaft with detailed geometry
-        const shaftHeight = 8;
-        const shaftGeometry = new THREE.CylinderGeometry(0.8, 0.8, shaftHeight, 16, 8);
-        const shaftMaterial = baseMaterial.clone();
-        
-        // Add vertex displacement for weathered look
-        const positions = shaftGeometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            const displacement = (Math.random() - 0.5) * 0.1;
-            positions[i] += displacement;
-            positions[i + 2] += displacement;
-        }
-        shaftGeometry.computeVertexNormals();
-
-        const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
-        shaft.position.y = baseHeight + shaftHeight/2;
-        pillar.add(shaft);
-
-        // Capital (top)
-        const capitalHeight = 1.5;
-        const capitalGeometry = new THREE.CylinderGeometry(1.3, 0.8, capitalHeight, 8);
-        const capital = new THREE.Mesh(capitalGeometry, baseMaterial.clone());
-        capital.position.y = baseHeight + shaftHeight + capitalHeight/2;
-        pillar.add(capital);
-
-        // Add cracks and damage
-        this.addPillarDamage(pillar);
-
-        pillar.castShadow = true;
-        pillar.receiveShadow = true;
-        return pillar;
-    }
-
-    addPillarDamage(pillar) {
-        // Add random cracks
-        const crackCount = Math.floor(Math.random() * 3) + 2;
-        for (let i = 0; i < crackCount; i++) {
-            const height = Math.random() * 8 + 1;
-            const angle = Math.random() * Math.PI * 2;
-            
-            const crackGeometry = new THREE.BoxGeometry(0.1, 1.5, 0.1);
-            const crackMaterial = new THREE.MeshStandardMaterial({
-                color: 0x000000,
-                roughness: 1,
-                metalness: 0
-            });
-            
-            const crack = new THREE.Mesh(crackGeometry, crackMaterial);
-            crack.position.set(
-                Math.cos(angle) * 0.79,
-                height,
-                Math.sin(angle) * 0.79
-            );
-            crack.rotation.y = angle;
-            pillar.add(crack);
-        }
-
-        // Add fallen debris around base
-        const debrisCount = Math.floor(Math.random() * 5) + 3;
-        for (let i = 0; i < debrisCount; i++) {
-            const size = Math.random() * 0.3 + 0.1;
-            const debrisGeometry = new THREE.DodecahedronGeometry(size);
-            const debrisMaterial = pillar.children[0].material.clone();
-            
-            const debris = new THREE.Mesh(debrisGeometry, debrisMaterial);
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * 2 + 1;
-            
-            debris.position.set(
-                Math.cos(angle) * radius,
-                0.1,
-                Math.sin(angle) * radius
-            );
-            
-            debris.rotation.set(
-                Math.random() * Math.PI,
-                Math.random() * Math.PI,
-                Math.random() * Math.PI
-            );
-            
-            pillar.add(debris);
-        }
-    }
-
-    addRocks() {
-        const rockCount = 50;
-        for (let i = 0; i < rockCount; i++) {
-            const rock = this.createRock();
-            const angle = Math.random() * Math.PI * 2;
-            const radius = Math.random() * 35 + 15;
-            
-            rock.position.set(
-                Math.cos(angle) * radius,
-                0,
-                Math.sin(angle) * radius
-            );
-            
-            rock.rotation.set(
-                Math.random() * Math.PI,
-                Math.random() * Math.PI,
-                Math.random() * Math.PI
-            );
-            
-            const scale = Math.random() * 0.5 + 0.5;
-            rock.scale.set(scale, scale * 0.7, scale);
-            
-            this.obstacles.add(rock);
-        }
-    }
-
-    createRock() {
-        const geometry = new THREE.DodecahedronGeometry(1, 1);
-        const material = new THREE.MeshStandardMaterial({
-            color: 0x666666,
-            roughness: 0.9,
-            metalness: 0.1
-        });
-
-        // Deform vertices for more natural look
-        const positions = geometry.attributes.position.array;
-        for (let i = 0; i < positions.length; i += 3) {
-            positions[i] += (Math.random() - 0.5) * 0.2;
-            positions[i + 1] += (Math.random() - 0.5) * 0.2;
-            positions[i + 2] += (Math.random() - 0.5) * 0.2;
-        }
-        geometry.computeVertexNormals();
-
-        const rock = new THREE.Mesh(geometry, material);
-        rock.castShadow = true;
-        rock.receiveShadow = true;
-        return rock;
     }
 
     addTorches() {
-        const torchCount = 16;
+        const torchCount = 12; // Reduced count, increased intensity
         for (let i = 0; i < torchCount; i++) {
             const angle = (i / torchCount) * Math.PI * 2;
             const radius = 25;
@@ -612,7 +410,6 @@ export default class Environment {
                 Math.sin(angle) * radius
             );
             
-            // Make torch face center
             torch.lookAt(new THREE.Vector3(0, 3, 0));
             this.torches.add(torch);
         }
@@ -620,25 +417,26 @@ export default class Environment {
 
     createTorch() {
         const torch = new THREE.Group();
-        torch.userData.type = 'torch';
-
+        
         // Bracket
         const bracketGeometry = new THREE.BoxGeometry(0.2, 0.8, 0.2);
         const bracketMaterial = new THREE.MeshStandardMaterial({
             color: 0x4a3525,
             roughness: 0.9,
-            metalness: 0.1
+            metalness: 0.1,
+            emissive: 0x4a3525,
+            emissiveIntensity: 0.2
         });
         const bracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
         bracket.rotation.x = Math.PI / 4;
         torch.add(bracket);
 
-        // Bowl
+        // Bowl with stronger emissive
         const bowlGeometry = new THREE.CylinderGeometry(0.2, 0.1, 0.3, 8);
         const bowlMaterial = new THREE.MeshStandardMaterial({
             color: 0x4a3525,
-            emissive: 0xff4400,
-            emissiveIntensity: 0.2
+            emissive: 0xff6600,
+            emissiveIntensity: 0.5
         });
         const bowl = new THREE.Mesh(bowlGeometry, bowlMaterial);
         bowl.position.y = 0.5;
@@ -647,8 +445,8 @@ export default class Environment {
         // Flame
         this.addTorchFlame(torch);
 
-        // Light
-        const light = new THREE.PointLight(0xff6600, 2, 15);
+        // Brighter light
+        const light = new THREE.PointLight(0xff6600, 3, 20);
         light.position.y = 0.5;
         torch.add(light);
 
@@ -664,7 +462,6 @@ export default class Environment {
             vertexShader: `
                 varying vec2 vUv;
                 uniform float time;
-                
                 void main() {
                     vUv = uv;
                     vec3 pos = position;
@@ -675,7 +472,6 @@ export default class Environment {
             fragmentShader: `
                 varying vec2 vUv;
                 uniform float time;
-                
                 void main() {
                     vec3 color1 = vec3(1.0, 0.3, 0.0);
                     vec3 color2 = vec3(1.0, 0.6, 0.0);
@@ -695,39 +491,30 @@ export default class Environment {
     }
 
     update(playerPosition) {
-        // Update torch effects
         this.updateTorches();
-        
-        // Update particles
         this.updateParticles();
-        
-        // Update fog and visibility
         this.updateVisibility(playerPosition);
     }
 
     updateTorches() {
         this.torches.children.forEach(torch => {
-            // Update flame animation
             const flame = torch.children.find(child => child.material?.isShaderMaterial);
             if (flame) {
                 flame.material.uniforms.time.value += 0.1;
             }
 
-            // Update light flicker
             const light = torch.children.find(child => child instanceof THREE.PointLight);
             if (light) {
-                light.intensity = 2 + Math.sin(Date.now() * 0.005) * 0.5;
+                light.intensity = 3 + Math.sin(Date.now() * 0.005) * 0.5;
             }
         });
     }
 
     updateParticles() {
-        // Update dust particles
         if (this.dustParticles) {
             this.dustParticles.material.uniforms.time.value += 0.01;
         }
 
-        // Update fog particles
         if (this.fogParticles) {
             const positions = this.fogParticles.geometry.attributes.position.array;
             const velocities = this.fogParticles.userData.velocities;
@@ -737,7 +524,6 @@ export default class Environment {
                 positions[i + 1] += velocities[i + 1];
                 positions[i + 2] += velocities[i + 2];
 
-                // Reset particles that move too far
                 if (Math.abs(positions[i]) > 100 || 
                     positions[i + 1] > 15 || 
                     Math.abs(positions[i + 2]) > 100) {
@@ -748,7 +534,6 @@ export default class Environment {
             this.fogParticles.geometry.attributes.position.needsUpdate = true;
         }
 
-        // Update embers
         if (this.embers) {
             const positions = this.embers.geometry.attributes.position.array;
             const velocities = this.embers.userData.velocities;
@@ -776,12 +561,10 @@ export default class Environment {
     }
 
     updateVisibility(playerPosition) {
-        // Update background glow
         if (this.backgroundGlow) {
             this.backgroundGlow.material.uniforms.viewPosition.value.copy(playerPosition);
         }
         
-        // Update object visibility based on distance from player
         this.obstacles.children.forEach(object => {
             const distance = object.position.distanceTo(playerPosition);
             const wasVisible = object.visible;
@@ -799,7 +582,6 @@ export default class Environment {
     resetParticle(positions, index) {
         const angle = Math.random() * Math.PI * 2;
         const radius = Math.random() * 60 + 20;
-        
         positions[index] = Math.cos(angle) * radius;
         positions[index + 1] = Math.random() * 10;
         positions[index + 2] = Math.sin(angle) * radius;
