@@ -1,310 +1,71 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import Board from './game/Board.js';
-import Player from './game/Player.js';
-import Environment from './components/Environment.js';
-import { gsap } from 'gsap';
 
 class DungeonGame {
     constructor() {
-        this.initialize();
-    }
-
-    initialize() {
-        // Scene setup
+        // Basic Three.js setup
         this.scene = new THREE.Scene();
-        
-        // Camera setup
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.camera.position.set(0, 30, 30);
-        this.camera.lookAt(0, 0, 0);
-
-        // Renderer setup
         this.renderer = new THREE.WebGLRenderer({
             antialias: true,
-            powerPreference: "high-performance"
+            alpha: true
         });
+
+        // Configure renderer
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         this.renderer.setPixelRatio(window.devicePixelRatio);
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.0;
+        this.renderer.setClearColor(0x000000);
         document.getElementById('game-container').appendChild(this.renderer.domElement);
 
-        // Controls setup
-        this.setupControls();
+        // Camera position
+        this.camera.position.set(0, 20, 20);
+        this.camera.lookAt(0, 0, 0);
 
-        // Game state
-        this.gameState = {
-            currentTurn: 'player',
-            isAnimating: false,
-            gameOver: false
-        };
+        // Basic lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+        this.scene.add(ambientLight);
 
-        // Initialize game elements
-        this.initializeGame();
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 5, 5);
+        directionalLight.castShadow = true;
+        this.scene.add(directionalLight);
 
-        // Event listeners
-        this.setupEventListeners();
+        // Test object - a red cube
+        const geometry = new THREE.BoxGeometry(5, 5, 5);
+        const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const cube = new THREE.Mesh(geometry, material);
+        this.scene.add(cube);
 
-        // Start animation loop
-        this.animate();
-    }
+        // Add a floor
+        const floorGeometry = new THREE.PlaneGeometry(50, 50);
+        const floorMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x666666,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -2.5;
+        floor.receiveShadow = true;
+        this.scene.add(floor);
 
-    setupControls() {
+        // OrbitControls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent camera going below ground
-        this.controls.minDistance = 15;
-        this.controls.maxDistance = 50;
-        this.controls.target.set(0, 0, 0);
-        
-        // Smooth camera movement
-        this.controls.enableSmoothing = true;
-        this.controls.smoothingFactor = 0.05;
-    }
 
-    initializeGame() {
-        // Create environment first
-        this.environment = new Environment(this.scene);
+        // Animation loop
+        this.animate();
 
-        // Create game board
-        this.board = new Board(this.scene);
-
-        // Create players
-        this.player = new Player(this.scene, false);
-        this.bot = new Player(this.scene, true);
-
-        // Position players at start
-        const startCell = this.board.getCellAt(0);
-        if (startCell) {
-            const startPos = startCell.position.clone();
-            this.player.moveTo(startPos.add(new THREE.Vector3(0, 1, 0)));
-            this.bot.moveTo(startPos.add(new THREE.Vector3(0, 1, 0)));
-        }
-
-        // Initial camera focus
-        this.focusCameraOnAction();
-    }
-
-    setupEventListeners() {
-        // Dice roll button
-        const rollButton = document.getElementById('roll-dice');
-        if (rollButton) {
-            rollButton.addEventListener('click', () => this.handleDiceRoll());
-        }
-
-        // Window resize
+        // Handle window resize
         window.addEventListener('resize', () => this.onWindowResize());
-
-        // Keyboard controls
-        window.addEventListener('keydown', (e) => this.handleKeyPress(e));
     }
 
-    handleDiceRoll() {
-        if (this.gameState.isAnimating || this.gameState.gameOver) return;
-
-        this.gameState.isAnimating = true;
-        const roll = Math.floor(Math.random() * 6) + 1;
-
-        // Visual feedback for dice roll
-        const rollButton = document.getElementById('roll-dice');
-        if (rollButton) {
-            rollButton.textContent = `Rolled: ${roll}`;
-            gsap.from(rollButton, {
-                scale: 1.2,
-                duration: 0.2,
-                ease: "power2.out"
-            });
-        }
-
-        if (this.gameState.currentTurn === 'player') {
-            this.handlePlayerTurn(roll);
-        } else {
-            this.handleBotTurn(roll);
-        }
-    }
-
-    async handlePlayerTurn(roll) {
-        const currentPos = this.player.getPosition();
-        const targetIndex = Math.min(currentPos + roll, this.board.pathCells.length - 1);
-        const targetCell = this.board.getCellAt(targetIndex);
-
-        if (targetCell) {
-            // Highlight path
-            this.board.highlightPath(currentPos, targetIndex);
-
-            // Move player
-            await this.player.moveTo(targetCell.position);
-
-            // Check for goblin
-            if (targetCell.hasGoblin) {
-                const damage = Math.floor(Math.random() * 3) + 1;
-                await this.player.takeDamage(damage);
-            }
-
-            // Check win condition
-            if (targetIndex === this.board.pathCells.length - 1) {
-                this.handleGameOver('player');
-                return;
-            }
-
-            // Switch turns
-            this.gameState.currentTurn = 'bot';
-            this.gameState.isAnimating = false;
-
-            // Auto-trigger bot turn after delay
-            setTimeout(() => this.handleDiceRoll(), 1000);
-        }
-    }
-
-    async handleBotTurn(roll) {
-        const currentPos = this.bot.getPosition();
-        const targetIndex = Math.min(currentPos + roll, this.board.pathCells.length - 1);
-        const targetCell = this.board.getCellAt(targetIndex);
-
-        if (targetCell) {
-            // Highlight path
-            this.board.highlightPath(currentPos, targetIndex);
-
-            // Move bot
-            await this.bot.moveTo(targetCell.position);
-
-            // Check for goblin
-            if (targetCell.hasGoblin) {
-                const damage = Math.floor(Math.random() * 3) + 1;
-                await this.bot.takeDamage(damage);
-            }
-
-            // Check win condition
-            if (targetIndex === this.board.pathCells.length - 1) {
-                this.handleGameOver('bot');
-                return;
-            }
-
-            // Switch turns
-            this.gameState.currentTurn = 'player';
-            this.gameState.isAnimating = false;
-        }
-    }
-
-    handleGameOver(winner) {
-        this.gameState.gameOver = true;
-        this.gameState.isAnimating = false;
-
-        // Visual feedback
-        const message = winner === 'player' ? 'You Win!' : 'Bot Wins!';
-        const rollButton = document.getElementById('roll-dice');
-        if (rollButton) {
-            rollButton.textContent = message;
-            rollButton.style.backgroundColor = winner === 'player' ? '#4CAF50' : '#f44336';
-        }
-
-        // Celebration effects
-        if (winner === 'player') {
-            this.createVictoryEffect();
-        }
-    }
-
-    createVictoryEffect() {
-        // Create particle burst effect
-        const particleCount = 100;
-        const geometry = new THREE.BufferGeometry();
-        const positions = new Float32Array(particleCount * 3);
-        const colors = new Float32Array(particleCount * 3);
-        const velocities = new Float32Array(particleCount * 3);
-
-        for (let i = 0; i < particleCount * 3; i += 3) {
-            // Random position around winner
-            const angle = Math.random() * Math.PI * 2;
-            positions[i] = Math.cos(angle) * 2;
-            positions[i + 1] = 0;
-            positions[i + 2] = Math.sin(angle) * 2;
-
-            // Random colors
-            colors[i] = Math.random();
-            colors[i + 1] = Math.random();
-            colors[i + 2] = Math.random();
-
-            // Random velocities
-            velocities[i] = (Math.random() - 0.5) * 0.2;
-            velocities[i + 1] = Math.random() * 0.2;
-            velocities[i + 2] = (Math.random() - 0.5) * 0.2;
-        }
-
-        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-
-        const material = new THREE.PointsMaterial({
-            size: 0.1,
-            vertexColors: true,
-            transparent: true,
-            opacity: 1
-        });
-
-        const particles = new THREE.Points(geometry, material);
-        particles.position.copy(this.player.getPosition());
-        this.scene.add(particles);
-
-        // Animate particles
-        const animate = () => {
-            const positions = particles.geometry.attributes.position.array;
-            for (let i = 0; i < positions.length; i += 3) {
-                positions[i] += velocities[i];
-                positions[i + 1] += velocities[i + 1];
-                positions[i + 2] += velocities[i + 2];
-                velocities[i + 1] -= 0.001; // Gravity
-            }
-            particles.geometry.attributes.position.needsUpdate = true;
-            
-            material.opacity -= 0.01;
-            if (material.opacity <= 0) {
-                this.scene.remove(particles);
-                return;
-            }
-            requestAnimationFrame(animate);
-        };
-        animate();
-    }
-
-    focusCameraOnAction() {
-        const playerPos = this.player.getPosition();
-        const targetPos = new THREE.Vector3(
-            playerPos.x,
-            this.camera.position.y,
-            playerPos.z + 20
-        );
-        
-        gsap.to(this.camera.position, {
-            x: targetPos.x,
-            z: targetPos.z,
-            duration: 2,
-            ease: "power2.inOut"
-        });
-    }
-
-    handleKeyPress(event) {
-        // Camera controls
-        switch(event.key) {
-            case 'r':
-                this.focusCameraOnAction();
-                break;
-            case 'c':
-                this.toggleCameraMode();
-                break;
-        }
-    }
-
-    toggleCameraMode() {
-        if (this.controls.enabled) {
-            this.controls.enabled = false;
-            this.focusCameraOnAction();
-        } else {
-            this.controls.enabled = true;
-        }
+    animate() {
+        requestAnimationFrame(() => this.animate());
+        this.controls.update();
+        this.renderer.render(this.scene, this.camera);
     }
 
     onWindowResize() {
@@ -312,31 +73,9 @@ class DungeonGame {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
-
-    animate() {
-        requestAnimationFrame(() => this.animate());
-
-        // Update controls
-        if (this.controls) {
-            this.controls.update();
-        }
-
-        // Update environment effects
-        if (this.environment) {
-            this.environment.update();
-        }
-
-        // Update board effects
-        if (this.board) {
-            this.board.update();
-        }
-
-        // Render
-        this.renderer.render(this.scene, this.camera);
-    }
 }
 
-// Initialize game when DOM is loaded
+// Wait for DOM to be loaded
 window.addEventListener('DOMContentLoaded', () => {
     new DungeonGame();
 });
