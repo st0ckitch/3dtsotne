@@ -1,0 +1,34 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #000;
+}
+
+#game-container {
+    width: 100vw;
+    height: 100vh;
+}
+
+#ui-overlay {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    color: #bb9b65;
+    font-family: 'Cinzel', serif;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+#roll-dice {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background: #4a3821;
+    border: 2px solid #bb9b65;
+    color: #bb9b65;
+    cursor: pointer;
+    font-family: 'Cinzel', serif;
+    transition: all 0.3s;
+}
+
+#roll-dice:hover {
+    background: #614b2d;
+}
