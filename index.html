@@ -3,22 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dark Fantasy Dungeon</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <title>Dungeon Game</title>
     <style>
-        body {
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
             overflow: hidden;
             background: #000;
-            font-family: 'Cinzel', serif;
         }
 
         #game-container {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100vw;
             height: 100vh;
-            position: relative;
         }
 
         #ui-overlay {
@@ -26,7 +29,7 @@
             top: 20px;
             left: 20px;
             color: #bb9b65;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            font-family: Arial, sans-serif;
             z-index: 1000;
         }
 
@@ -37,22 +40,16 @@
             border: 2px solid #bb9b65;
             color: #bb9b65;
             cursor: pointer;
-            font-family: 'Cinzel', serif;
-            transition: all 0.3s;
-        }
-
-        #roll-dice:hover {
-            background: #614b2d;
+            font-family: inherit;
         }
     </style>
 </head>
 <body>
-    <div id="game-container">
-        <div id="ui-overlay">
-            <div id="player-stats">HP: <span id="player-hp">15</span></div>
-            <div id="bot-stats">Bot HP: <span id="bot-hp">15</span></div>
-            <button id="roll-dice">Roll Dice</button>
-        </div>
+    <div id="game-container"></div>
+    <div id="ui-overlay">
+        <div>HP: 15</div>
+        <div>BOT HP: 15</div>
+        <button id="roll-dice">Roll Dice</button>
     </div>
     <script type="module" src="/src/main.js"></script>
 </body>
