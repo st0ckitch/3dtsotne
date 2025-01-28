@@ -1,60 +1,10 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dungeon Game</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            overflow: hidden;
-            background: #000;
-        }
-
-        #game-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-        }
-
-        #ui-container {
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            z-index: 100;
-            color: #fff;
-            font-family: Arial, sans-serif;
-        }
-
-        #roll-dice {
-            padding: 10px 20px;
-            background: #4a4a4a;
-            border: 2px solid #666;
-            color: white;
-            cursor: pointer;
-            font-size: 16px;
-            border-radius: 4px;
-            transition: background 0.3s;
-        }
-
-        #roll-dice:hover {
-            background: #666;
-        }
-
-        .stats {
-            margin-bottom: 10px;
-            font-size: 18px;
-            text-shadow: 2px 2px 2px rgba(0,0,0,0.5);
-        }
-    </style>
+    <link rel="stylesheet" href="/src/styles.css">
 </head>
 <body>
     <div id="game-container"></div>
