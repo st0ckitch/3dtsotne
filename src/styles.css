@@ -1,34 +1,99 @@
+/* Import Cinzel font */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&display=swap');
+
+/* Reset and base styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
 body {
     margin: 0;
     overflow: hidden;
     background: #000;
+    font-family: 'Cinzel', serif;
 }
 
+/* Game container */
 #game-container {
     width: 100vw;
     height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
 }
 
-#ui-overlay {
+/* UI Elements */
+#ui-container {
     position: fixed;
     top: 20px;
     left: 20px;
     color: #bb9b65;
-    font-family: 'Cinzel', serif;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    z-index: 100;
 }
 
+.stats {
+    font-size: 18px;
+    margin-bottom: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+/* Dice Roll Button */
 #roll-dice {
     margin-top: 10px;
-    padding: 10px 20px;
+    padding: 12px 24px;
     background: #4a3821;
     border: 2px solid #bb9b65;
     color: #bb9b65;
     cursor: pointer;
     font-family: 'Cinzel', serif;
-    transition: all 0.3s;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 #roll-dice:hover {
     background: #614b2d;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+#roll-dice:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Game Over States */
+#roll-dice.winner {
+    background: #2d5a2b;
+    border-color: #4CAF50;
+    color: #4CAF50;
+}
+
+#roll-dice.loser {
+    background: #5a2b2b;
+    border-color: #f44336;
+    color: #f44336;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #ui-container {
+        top: 10px;
+        left: 10px;
+    }
+
+    .stats {
+        font-size: 16px;
+    }
+
+    #roll-dice {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
 }
