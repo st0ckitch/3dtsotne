@@ -12,8 +12,8 @@ export default class Cell {
         const geometry = new THREE.CylinderGeometry(1, 1, 0.2, 6);
         const material = new THREE.MeshPhongMaterial({
             color: this.index === 49 ? 0x00ff00 : 0x666666,
-            metalness: 0.5,
-            roughness: 0.7
+            shininess: 30,
+            specular: 0x444444
         });
 
         this.mesh = new THREE.Mesh(geometry, material);
@@ -31,7 +31,8 @@ export default class Cell {
         const indicatorMaterial = new THREE.MeshPhongMaterial({ 
             color: 0xff0000,
             emissive: 0xff0000,
-            emissiveIntensity: 0.2
+            emissiveIntensity: 0.2,
+            shininess: 30
         });
         
         const indicator = new THREE.Mesh(indicatorGeometry, indicatorMaterial);
@@ -41,10 +42,10 @@ export default class Cell {
 
     highlight(active = true) {
         if (active) {
-            this.mesh.material.emissive.setHex(0x666666);
+            this.mesh.material.emissive = new THREE.Color(0x666666);
             this.mesh.material.emissiveIntensity = 0.3;
         } else {
-            this.mesh.material.emissive.setHex(0x000000);
+            this.mesh.material.emissive = new THREE.Color(0x000000);
             this.mesh.material.emissiveIntensity = 0;
         }
     }
